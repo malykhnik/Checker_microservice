@@ -4,6 +4,7 @@ import com.praktika.checkservicehealth.dto.*;
 import com.praktika.checkservicehealth.entity.Endpoint;
 import com.praktika.checkservicehealth.repository.EndpointRepo;
 import com.praktika.checkservicehealth.service.EndpointService;
+import com.praktika.checkservicehealth.service.JwtTokenService;
 import com.praktika.checkservicehealth.service.NotificationTg;
 import com.praktika.checkservicehealth.utils.WorkWithAuth;
 import jakarta.annotation.PostConstruct;
@@ -33,6 +34,7 @@ public class EndpointServiceImpl implements EndpointService {
     private final EndpointRepo endpointRepo;
     private final NotificationTg notificationTg;
     private final MailServiceImpl mailService;
+    private final JwtTokenService jwtTokenService;
     private final EndpointWithTimeDto endpointWithTimeDto = EndpointWithTimeDto.getInstance();
     private final RestClient restClient = RestClient.create();
 
@@ -52,21 +54,20 @@ public class EndpointServiceImpl implements EndpointService {
     public void checkAllEndpoints() {
         LOGGER.info("ВЫЗВАНА ФУНКЦИЯ checkAllEndpoints()");
         List<Endpoint> endpoints = endpointRepo.findAll();
+        LOGGER.info(endpointWithTimeDto.getTimeObj().toString());
+        LOGGER.info(endpoints.toString());
 
         if (endpoints.isEmpty()) return;
 
-        LOGGER.info(endpoints.toString());
         endpoints.forEach(endpoint -> {
             DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
             String formattedTime = dtf.format(LocalDateTime.now());
-            LOGGER.info("зашел в цикл");
             if (checkEndpointTimer(endpoint.getUsername())) {
-                LOGGER.info("зашел в if");
+                LOGGER.info("ЗАШЕЛ В условие checkEndpointTimer()");
                 LoginEndpointDto loginEndpointDto = new LoginEndpointDto(endpoint.getUsername(), endpoint.getPassword());
 
-                LOGGER.info(endpoint.getUrl());
-
                 try {
+                    LOGGER.info("ЗАШЕЛ В try");
                     TokenDto tokenDto = restClient.post()
                             .uri(endpoint.getUrl() + GET_TOKEN)
                             .header("Content-Type", "application/json")
@@ -74,11 +75,14 @@ public class EndpointServiceImpl implements EndpointService {
                             .retrieve()
                             .body(TokenDto.class);
 
+                    LOGGER.info("TOKEN: " + tokenDto);
+
                     assert tokenDto != null;
                     String token = tokenDto.getToken();
                     AuthResponse authResponse = checkServiceAvailability(endpoint.getUrl(), token);
 
-                    LOGGER.info("authResponse: {}", authResponse);
+                    LOGGER.info("AuthResponse: " + authResponse);
+
                     EndpointStatusDto endpointStatusDto = new EndpointStatusDto(endpoint.getRole().getName(), endpoint.getUrl(), new ArrayList<>());
 
                     for (ServiceDto service : authResponse.getServices()) {
@@ -91,14 +95,13 @@ public class EndpointServiceImpl implements EndpointService {
                     }
                     EndpointWithTimeDto.getInstance().updateMap(endpoint.getUsername(), endpointStatusDto);
 
-                } catch (RestClientException e) {
+                } catch (Exception e) {
                     String message = String.format("Сервис на эндпоинте %s не отвечает. %s", endpoint.getUrl(), formattedTime);
                     notificationTg.sendNotification(message);
                     mailService.sendMail(message);
                     List<ServiceDto> list = new ArrayList<>();
                     list.add(new ServiceDto("endpoint", "no connection", new CrudStatusDto(false, false, false, false)));
                     EndpointWithTimeDto.getInstance().updateMap(endpoint.getUsername(), new EndpointStatusDto(endpoint.getRole().getName(), endpoint.getUrl(), list));
-                    LOGGER.info("Error: " + e.getMessage());
                 }
             } else {
                 LOGGER.info("НЕ ЗАШЕЛ В if");
@@ -113,12 +116,7 @@ public class EndpointServiceImpl implements EndpointService {
             Endpoint endpoint = endpointOptional.get();
             DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
             String formattedTime = dtf.format(LocalDateTime.now());
-            LOGGER.info("зашел в цикл");
-
             LoginEndpointDto loginEndpointDto = new LoginEndpointDto(endpoint.getUsername(), endpoint.getPassword());
-
-            LOGGER.info(endpoint.getUrl());
-
             try {
                 TokenDto tokenDto = restClient.post()
                         .uri(endpoint.getUrl() + GET_TOKEN)
@@ -151,7 +149,6 @@ public class EndpointServiceImpl implements EndpointService {
                 List<ServiceDto> list = new ArrayList<>();
                 list.add(new ServiceDto("endpoint", "no connection", new CrudStatusDto(false, false, false, false)));
                 EndpointWithTimeDto.getInstance().updateMap(endpoint.getUsername(), new EndpointStatusDto(endpoint.getRole().getName(), endpoint.getUrl(), list));
-                LOGGER.info("Error: " + e.getMessage());
             }
 
         } else {
@@ -169,7 +166,7 @@ public class EndpointServiceImpl implements EndpointService {
 
     private boolean checkEndpointTimer(String endpoint) {
         Map<String, TimeDto> map = EndpointWithTimeDto.getInstance().getTimeObj();
-        LOGGER.info("MAP: " + map.toString());
+        LOGGER.info("MAP: " + map);
         if (map.get(endpoint).getLastVisit() == null) {
             Optional<Endpoint> endpointOptional = endpointRepo.findEndpointByUsername(endpoint);
             endpointOptional.ifPresent(value -> EndpointWithTimeDto.getInstance().getTimeObj().put(endpoint, new TimeDto(new EndpointStatusDto(), Instant.now(), value.getPeriod())));
@@ -186,7 +183,6 @@ public class EndpointServiceImpl implements EndpointService {
         List<OutputDataDto> list = new ArrayList<>();
         for (Map.Entry<String, TimeDto> entry : EndpointWithTimeDto.getInstance().getTimeObj().entrySet()) {
             OutputDataDto temp = new OutputDataDto();
-            System.out.println(entry.getValue());
             temp.setServices(entry.getValue().getEndpoint().getServices());
             temp.setUrl(entry.getValue().getEndpoint().getUrl());
             temp.setRole(entry.getValue().getEndpoint().getRole());
@@ -196,7 +192,8 @@ public class EndpointServiceImpl implements EndpointService {
             temp.setTime(formattedTime);
             list.add(temp);
 
-            String currentRole = WorkWithAuth.getCurrentRole();
+            String currentRole = WorkWithAuth.getCurrentRole(jwtTokenService);
+
             String formattedRole = currentRole.split("_")[1];
             if (entry.getValue().getEndpoint().getServices() != null) {
                 for (ServiceDto service : entry.getValue().getEndpoint().getServices()) {

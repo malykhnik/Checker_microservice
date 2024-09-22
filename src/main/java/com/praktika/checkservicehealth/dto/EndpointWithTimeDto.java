@@ -9,9 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 @Data
@@ -34,7 +32,33 @@ public class EndpointWithTimeDto {
 
     public void init(EndpointRepo endpointRepo) {
         List<Endpoint> endpointsList = endpointRepo.findAll();
-        endpointsList.forEach(endpoint -> timeObj.put(endpoint.getUsername(), new TimeDto(new EndpointStatusDto(), Instant.now(), endpoint.getPeriod())));
+        endpointsList.forEach(endpoint -> timeObj.put(endpoint.getUsername(),
+                new TimeDto(EndpointStatusDto.builder()
+                        .url(endpoint.getUrl())
+                        .role(endpoint.getRole().getName())
+//                        .services(Arrays.asList(
+//                                ServiceDto.builder()
+//                                        .name("endpoint323")
+//                                        .status("active")
+//                                        .crud_status(null)
+//                                        .build(),
+//                                ServiceDto.builder()
+//                                        .name("endpoint324")
+//                                        .status("inactive")
+//                                        .crud_status(null)
+//                                        .build(),
+//                                ServiceDto.builder()
+//                                        .name("endpoint325")
+//                                        .status("active")
+//                                        .crud_status(null)
+//                                        .build()
+//                        ))
+                        .services(new ArrayList<>())
+                        .build(),
+                        Instant.now(),
+                        endpoint.getPeriod())
+        ));
+        LOGGER.info("INSTANCE после init: " + timeObj);
     }
 
     public void updateMap(String endpoint, EndpointStatusDto endpointStatusDto) {

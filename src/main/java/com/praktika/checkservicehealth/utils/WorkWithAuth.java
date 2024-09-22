@@ -1,22 +1,17 @@
 package com.praktika.checkservicehealth.utils;
 
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
+import com.praktika.checkservicehealth.service.JwtTokenService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.client.RestClient;
 
-import java.util.ArrayList;
-import java.util.List;
-
+@RequiredArgsConstructor
 public class WorkWithAuth {
-    public static String getCurrentRole() {
-        List<String> roles = new ArrayList<>();
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.isAuthenticated()) {
-            for (GrantedAuthority authority : auth.getAuthorities()) {
-                roles.add(authority.getAuthority());
-            }
-        }
-        return roles.get(0);
+    private static final RestClient restClient = RestClient.create();
+    public static String getCurrentRole(JwtTokenService jwtTokenService) {
+        return restClient.get()
+                .uri("http://localhost:8080/api/v1/getCurrentRole")
+                .header("Authorization", "Bearer " + jwtTokenService.getJwt())
+                .retrieve()
+                .body(String.class);
     }
-
 }

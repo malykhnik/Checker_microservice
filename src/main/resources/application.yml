@@ -8,7 +8,7 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: update
     database: postgresql
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     show-sql: true
@@ -35,15 +35,25 @@ spring:
             enable: true
 
     default-encoding: UTF-8
+
+  cache:
+    type: redis
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
 url:
   tg:
     key: "http://localhost:9001"
   tg_req:
     key: "/notify"
   get_token:
-    key: "get-token"
+    key: "api/v1/get-token"
   check_status:
-    key: "check-status"
+    key: "api/v1/check-status"
 
 email:
   from: "nik.malykh.2024@mail.ru"
+server:
+  port: 8082
