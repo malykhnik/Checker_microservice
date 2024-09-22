@@ -1,8 +1,8 @@
 spring:
   application:
-    name: CheckServiceHealth
+    name: Checker_microservice
   datasource:
-    url: jdbc:postgresql://localhost:5432/services_health
+    url: jdbc:postgresql://checker_db:5432/checker_db
     password: postgres
     username: postgres
     driver-class-name: org.postgresql.Driver
@@ -40,7 +40,7 @@ spring:
     type: redis
   data:
     redis:
-      host: localhost
+      host: redis
       port: 6379
 
 url:
@@ -55,5 +55,6 @@ url:
 
 email:
   from: "nik.malykh.2024@mail.ru"
+
 server:
   port: 8082
