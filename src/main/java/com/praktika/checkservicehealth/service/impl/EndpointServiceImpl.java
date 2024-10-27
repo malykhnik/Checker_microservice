@@ -5,7 +5,7 @@ import com.praktika.checkservicehealth.entity.Endpoint;
 import com.praktika.checkservicehealth.repository.EndpointRepo;
 import com.praktika.checkservicehealth.service.EndpointService;
 import com.praktika.checkservicehealth.service.JwtTokenService;
-import com.praktika.checkservicehealth.service.NotificationTg;
+import com.praktika.checkservicehealth.utils.MessageSender;
 import com.praktika.checkservicehealth.utils.WorkWithAuth;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -32,8 +32,6 @@ import java.util.Optional;
 public class EndpointServiceImpl implements EndpointService {
     private final Logger LOGGER = LoggerFactory.getLogger(EndpointServiceImpl.class);
     private final EndpointRepo endpointRepo;
-    private final NotificationTg notificationTg;
-    private final MailServiceImpl mailService;
     private final JwtTokenService jwtTokenService;
     private final EndpointWithTimeDto endpointWithTimeDto = EndpointWithTimeDto.getInstance();
     private final RestClient restClient = RestClient.create();
@@ -88,8 +86,7 @@ public class EndpointServiceImpl implements EndpointService {
                     for (ServiceDto service : authResponse.getServices()) {
                         if ("inactive".equals(service.getStatus())) {
                             String message = String.format("Сервис %s не работает на эндпоинте %s. %s", service.getName(), endpoint.getUrl(), formattedTime);
-                            notificationTg.sendNotification(message);
-                            mailService.sendMail(message);
+                            sendNotifications(message);
                         }
                         endpointStatusDto.getServices().add(service);
                     }
@@ -97,8 +94,7 @@ public class EndpointServiceImpl implements EndpointService {
 
                 } catch (Exception e) {
                     String message = String.format("Сервис на эндпоинте %s не отвечает. %s", endpoint.getUrl(), formattedTime);
-                    notificationTg.sendNotification(message);
-                    mailService.sendMail(message);
+                    sendNotifications(message);
                     List<ServiceDto> list = new ArrayList<>();
                     list.add(new ServiceDto("endpoint", "no connection", new CrudStatusDto(false, false, false, false)));
                     EndpointWithTimeDto.getInstance().updateMap(endpoint.getUsername(), new EndpointStatusDto(endpoint.getRole().getName(), endpoint.getUrl(), list));
@@ -135,8 +131,7 @@ public class EndpointServiceImpl implements EndpointService {
                 for (ServiceDto service : authResponse.getServices()) {
                     if ("inactive".equals(service.getStatus())) {
                         String message = String.format("Сервис %s не работает на эндпоинте %s. %s", service.getName(), endpoint.getUrl(), formattedTime);
-                        notificationTg.sendNotification(message);
-                        mailService.sendMail(message);
+                        sendNotifications(message);
                     }
                     endpointStatusDto.getServices().add(service);
                 }
@@ -144,8 +139,7 @@ public class EndpointServiceImpl implements EndpointService {
 
             } catch (RestClientException e) {
                 String message = String.format("Сервис на эндпоинте %s не отвечает. %s", endpoint.getUrl(), formattedTime);
-                notificationTg.sendNotification(message);
-                mailService.sendMail(message);
+                sendNotifications(message);
                 List<ServiceDto> list = new ArrayList<>();
                 list.add(new ServiceDto("endpoint", "no connection", new CrudStatusDto(false, false, false, false)));
                 EndpointWithTimeDto.getInstance().updateMap(endpoint.getUsername(), new EndpointStatusDto(endpoint.getRole().getName(), endpoint.getUrl(), list));
@@ -154,6 +148,14 @@ public class EndpointServiceImpl implements EndpointService {
         } else {
             LOGGER.info("ЭНДПОИНТ ПУСТОЙ");
         }
+    }
+
+    private void sendNotifications(String message) {
+        MessageDto messageDto = MessageDto.builder()
+                .message(message)
+                .build();
+        MessageSender.sendToTG(messageDto);
+        MessageSender.sendToMail(messageDto);
     }
 
     private AuthResponse checkServiceAvailability(String url, String token) {

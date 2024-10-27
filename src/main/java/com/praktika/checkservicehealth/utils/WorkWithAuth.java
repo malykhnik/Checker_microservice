@@ -9,7 +9,7 @@ public class WorkWithAuth {
     private static final RestClient restClient = RestClient.create();
     public static String getCurrentRole(JwtTokenService jwtTokenService) {
         return restClient.get()
-                .uri("http://localhost:8080/api/v1/getCurrentRole")
+                .uri("http://auth-microservice:8080/api/v1/getCurrentRole")
                 .header("Authorization", "Bearer " + jwtTokenService.getJwt())
                 .retrieve()
                 .body(String.class);
