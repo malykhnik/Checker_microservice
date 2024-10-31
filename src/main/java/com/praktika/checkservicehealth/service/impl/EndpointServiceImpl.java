@@ -33,6 +33,7 @@ public class EndpointServiceImpl implements EndpointService {
     private final Logger LOGGER = LoggerFactory.getLogger(EndpointServiceImpl.class);
     private final EndpointRepo endpointRepo;
     private final JwtTokenService jwtTokenService;
+    private final MessageSender messageSender;
     private final EndpointWithTimeDto endpointWithTimeDto = EndpointWithTimeDto.getInstance();
     private final RestClient restClient = RestClient.create();
 
@@ -154,8 +155,8 @@ public class EndpointServiceImpl implements EndpointService {
         MessageDto messageDto = MessageDto.builder()
                 .message(message)
                 .build();
-        MessageSender.sendToTG(messageDto);
-        MessageSender.sendToMail(messageDto);
+        messageSender.sendToTG(messageDto);
+        messageSender.sendToMail(messageDto);
     }
 
     private AuthResponse checkServiceAvailability(String url, String token) {
